@@ -1,0 +1,1 @@
+mysql 数据库地址10.43.5.98::3306 账号petefloyd 密码123zhang 
