@@ -5,12 +5,16 @@ on:
     branches: [ "emdash/task1-63i" ]
   pull_request:
     branches: [ "emdash/task1-63i" ]
-  workflow_dispatch:   # 可手动触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: idea_back
 
     steps:
       - name: Checkout code
@@ -25,10 +29,9 @@ jobs:
 
       - name: Ensure mvnw is executable
         run: |
-          if [ -f ./mvnw ]; then chmod +x ./mvnw; fi
+          if [ -f mvnw ]; then chmod +x mvnw; fi
 
       - name: Build and run tests
-        # Prefer mvnw if present, otherwise use mvn
         run: |
           if [ -f ./mvnw ]; then
             ./mvnw -B clean verify
