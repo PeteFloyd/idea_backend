@@ -5,9 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.learn.demo.dto.ApiResponse;
 import com.learn.demo.dto.ErrorResponse;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,7 +45,7 @@ class GlobalExceptionHandlerTest {
 
         BusinessException highCode = new BusinessException(502, "upstream");
         ResponseEntity<ApiResponse<Void>> highResponse = handler.handleBusinessException(highCode);
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, highResponse.getStatusCode());
+        assertEquals(HttpStatus.BAD_GATEWAY, highResponse.getStatusCode());
         assertEquals(502, highResponse.getBody().getCode());
     }
 
@@ -71,6 +76,29 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertEquals(500, response.getBody().getCode());
         assertEquals("Internal server error", response.getBody().getMessage());
+    }
+
+    @Test
+    void handleConstraintViolationException() {
+        @SuppressWarnings("unchecked")
+        ConstraintViolation<Object> violation = Mockito.mock(ConstraintViolation.class);
+        Path path = Mockito.mock(Path.class);
+        Mockito.when(path.toString()).thenReturn("username");
+        Mockito.when(violation.getPropertyPath()).thenReturn(path);
+        Mockito.when(violation.getMessage()).thenReturn("must not be blank");
+
+        ConstraintViolationException exception = new ConstraintViolationException(Set.of(violation));
+        ResponseEntity<ErrorResponse> response = handler.handleConstraintViolation(exception);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        ErrorResponse body = response.getBody();
+        assertNotNull(body);
+        assertEquals(400, body.getCode());
+        assertEquals("Validation failed", body.getMessage());
+        List<ErrorResponse.FieldError> errors = body.getErrors();
+        assertEquals(1, errors.size());
+        assertEquals("username", errors.get(0).getField());
+        assertEquals("must not be blank", errors.get(0).getMessage());
     }
 
     private static class DummyController {
