@@ -1,16 +1,34 @@
-name: Java CI (Maven - emdash/task1-63i)
+name: Java CI
 
 on:
   push:
-    branches: [ "emdash/task1-63i" ]
+    branches: [ "main", "develop" ]
+    paths:
+      - 'idea_back/**'
+      - '.github/workflows/java-ci.yml'
   pull_request:
-    branches: [ "emdash/task1-63i" ]
+    branches: [ "main", "develop" ]
+    paths:
+      - 'idea_back/**'
+      - '.github/workflows/java-ci.yml'
   workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (for emergency fixes)'
+        required: false
+        default: 'false'
+        type: boolean
+
+# 取消同一分支上的旧运行，节省资源
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Build & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     defaults:
       run:
@@ -18,7 +36,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 完整历史，用于代码分析
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -28,13 +48,67 @@ jobs:
           cache: 'maven'
 
       - name: Ensure mvnw is executable
-        run: |
-          if [ -f mvnw ]; then chmod +x mvnw; fi
+        run: chmod +x mvnw
 
-      - name: Build and run tests
+      - name: Build (compile only)
+        run: ./mvnw -B compile -DskipTests
+
+      - name: Run tests with coverage
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        run: ./mvnw -B verify
+
+      - name: Upload coverage report
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: idea_back/target/site/jacoco/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: idea_back/target/surefire-reports/
+          retention-days: 7
+
+      - name: Add coverage summary to PR
+        if: github.event_name == 'pull_request' && github.event.inputs.skip_tests != 'true'
+        uses: madrapps/jacoco-report@v1.6.1
+        with:
+          paths: idea_back/target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 80
+          min-coverage-changed-files: 80
+          title: "📊 Code Coverage Report"
+          update-comment: true
+
+  # 代码质量检查（可选，快速反馈）
+  lint:
+    name: Code Style Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    defaults:
+      run:
+        working-directory: idea_back
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Check code style (compile warnings)
         run: |
-          if [ -f ./mvnw ]; then
-            ./mvnw -B clean verify
-          else
-            mvn -B clean verify
+          chmod +x mvnw
+          ./mvnw -B compile -Dmaven.compiler.showWarnings=true -Dmaven.compiler.showDeprecation=true 2>&1 | tee compile.log
+          if grep -q "\[WARNING\]" compile.log; then
+            echo "⚠️ Compiler warnings found (not blocking)"
           fi
