@@ -14,9 +14,9 @@ spring:
     date-format: "yyyy-MM-dd'T'HH:mm:ss'Z'"
     time-zone: UTC
   datasource:
-    url: jdbc:mysql://10.43.5.98:3306/idea?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: petefloyd
-    password: 123zhang
+    url: jdbc:mysql://idea-back-mysql.ns-4zo0q0qz.svc:3306/idea?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: 5rmqdlcf
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:

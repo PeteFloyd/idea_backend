@@ -12,3 +12,7 @@ spring:
           auto: create-drop
         auto_quote_keyword: true
         dialect: org.hibernate.dialect.H2Dialect
+
+jwt:
+  secret: testSecretKeyForUnitTestingPurposesOnly12345678901234567890
+  expiration: 86400000
