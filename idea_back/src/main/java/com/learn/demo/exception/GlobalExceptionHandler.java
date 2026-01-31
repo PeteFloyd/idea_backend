@@ -5,6 +5,9 @@ import com.learn.demo.dto.ErrorResponse;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -39,6 +42,27 @@ public class GlobalExceptionHandler {
             .toList();
         return ResponseEntity.badRequest().body(
             ErrorResponse.builder().code(400).message("Validation failed").errors(errors).build()
+        );
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
+        return ResponseEntity.status(401).body(
+            ErrorResponse.builder().code(401).message("Invalid username or password").build()
+        );
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ErrorResponse> handleDisabled(DisabledException ex) {
+        return ResponseEntity.status(403).body(
+            ErrorResponse.builder().code(403).message("Account is disabled").build()
+        );
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuth(AuthenticationException ex) {
+        return ResponseEntity.status(401).body(
+            ErrorResponse.builder().code(401).message("Authentication failed").build()
         );
     }
 
