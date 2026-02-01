@@ -3,6 +3,7 @@ package com.learn.demo.security;
 import com.learn.demo.entity.User;
 import com.learn.demo.enums.UserRole;
 import com.learn.demo.enums.UserStatus;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,6 +23,14 @@ public class UserPrincipal implements UserDetails {
 
     public UserRole getRole() {
         return user.getRole();
+    }
+
+    public LocalDateTime getPasswordChangedAt() {
+        return user.getPasswordChangedAt();
+    }
+
+    public User getUser() {
+        return user;
     }
 
     @Override

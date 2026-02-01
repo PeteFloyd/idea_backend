@@ -38,6 +38,9 @@ public class User {
 	private String password;
 
 	@Column
+	private LocalDateTime passwordChangedAt;
+
+	@Column
 	private String email;
 
 	@Column

@@ -40,6 +40,7 @@ class JwtTokenProviderTest {
         assertEquals("alice", provider.getUsernameFromToken(token));
         assertEquals(1L, provider.getIdFromToken(token));
         assertNotNull(provider.getExpirationDateFromToken(token));
+        assertNotNull(provider.getIssuedAtFromToken(token));
     }
 
     @Test
