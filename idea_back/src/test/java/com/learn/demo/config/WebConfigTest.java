@@ -9,7 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-@SpringBootTest(classes = WebConfig.class)
+@SpringBootTest(classes = {WebConfig.class, FileStorageConfig.class})
 class WebConfigTest {
 
     @Autowired
