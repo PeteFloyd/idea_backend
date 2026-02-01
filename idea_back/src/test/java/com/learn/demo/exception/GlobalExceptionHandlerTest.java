@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @SpringBootTest(classes = GlobalExceptionHandlerTest.TestApp.class)
 class GlobalExceptionHandlerTest {
@@ -99,6 +100,16 @@ class GlobalExceptionHandlerTest {
         assertEquals(1, errors.size());
         assertEquals("username", errors.get(0).getField());
         assertEquals("must not be blank", errors.get(0).getMessage());
+    }
+
+    @Test
+    void handleMaxUploadSizeExceeded_returns400() {
+        MaxUploadSizeExceededException exception = new MaxUploadSizeExceededException(5);
+        ResponseEntity<ApiResponse<Void>> response = handler.handleMaxUploadSizeExceeded(exception);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(400, response.getBody().getCode());
+        assertEquals("File size exceeds maximum limit of 5MB", response.getBody().getMessage());
     }
 
     private static class DummyController {

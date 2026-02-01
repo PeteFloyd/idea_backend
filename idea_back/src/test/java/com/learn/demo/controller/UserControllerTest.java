@@ -18,8 +18,10 @@ import com.learn.demo.security.UserPrincipal;
 import com.learn.demo.security.JwtTokenProvider;
 import com.learn.demo.service.CustomUserDetailsService;
 import com.learn.demo.service.UserService;
+import com.learn.demo.config.FileStorageConfig;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -150,6 +152,13 @@ class UserControllerTest {
     }
 
     static class TestConfig implements WebMvcConfigurer {
+        @org.springframework.context.annotation.Bean
+        public FileStorageConfig fileStorageConfig() {
+            FileStorageConfig config = new FileStorageConfig();
+            config.setUploadDir("./uploads");
+            return config;
+        }
+
         @Override
         public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
             resolvers.add(new HandlerMethodArgumentResolver() {
