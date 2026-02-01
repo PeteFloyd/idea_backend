@@ -20,6 +20,7 @@ public class IdeaSpecifications {
     public static Specification<Idea> withTag(String tagName) {
         if (tagName == null || tagName.isBlank()) return null;
         return (root, query, cb) -> {
+            query.distinct(true);
             Join<Idea, Tag> tags = root.join("tags");
             return cb.equal(cb.lower(tags.get("name")), tagName.toLowerCase());
         };
