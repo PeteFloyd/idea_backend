@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.learn.demo.entity.Idea;
 import com.learn.demo.entity.User;
 import com.learn.demo.enums.IdeaStatus;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -76,6 +77,33 @@ class IdeaRepositoryTest {
 
         Page<Idea> page = ideaRepository.searchByKeyword("Missing", PageRequest.of(0, 10));
         assertEquals(0, page.getTotalElements());
+    }
+
+    @Test
+    void findByUserIdAndIdAndStatusMatchesOwnerAndStatus() {
+        User owner = userRepository.save(buildUser("own", "own@example.com"));
+        User other = userRepository.save(buildUser("other", "other2@example.com"));
+        Idea idea = ideaRepository.save(buildIdea(owner, "Idea", "Desc", IdeaStatus.ACTIVE));
+
+        Optional<Idea> ownerMatch = ideaRepository.findByUserIdAndIdAndStatus(
+            owner.getId(),
+            idea.getId(),
+            IdeaStatus.ACTIVE
+        );
+        Optional<Idea> otherMatch = ideaRepository.findByUserIdAndIdAndStatus(
+            other.getId(),
+            idea.getId(),
+            IdeaStatus.ACTIVE
+        );
+        Optional<Idea> statusMismatch = ideaRepository.findByUserIdAndIdAndStatus(
+            owner.getId(),
+            idea.getId(),
+            IdeaStatus.HIDDEN
+        );
+
+        assertTrue(ownerMatch.isPresent());
+        assertTrue(otherMatch.isEmpty());
+        assertTrue(statusMismatch.isEmpty());
     }
 
     private User buildUser(String username, String email) {

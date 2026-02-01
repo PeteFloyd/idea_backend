@@ -8,6 +8,7 @@ import com.learn.demo.entity.Idea;
 import com.learn.demo.entity.Like;
 import com.learn.demo.entity.User;
 import com.learn.demo.enums.IdeaStatus;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +73,54 @@ class LikeRepositoryTest {
     void findByUserIdAndIdeaIdReturnsEmptyWhenMissing() {
         Optional<Like> found = likeRepository.findByUserIdAndIdeaId(1L, 2L);
         assertTrue(found.isEmpty());
+    }
+
+    @Test
+    void findByUserIdAndIdeaIdInHandlesEmptyList() {
+        User user = userRepository.save(buildUser("batch", "batch@example.com"));
+        List<Like> likes = likeRepository.findByUserIdAndIdeaIdIn(user.getId(), List.of());
+        assertTrue(likes.isEmpty());
+    }
+
+    @Test
+    void findByUserIdAndIdeaIdInReturnsOnlyUserLikes() {
+        User user = userRepository.save(buildUser("batch2", "batch2@example.com"));
+        User other = userRepository.save(buildUser("batch3", "batch3@example.com"));
+        Idea idea1 = ideaRepository.save(buildIdea(user, "Idea1", "Desc1"));
+        Idea idea2 = ideaRepository.save(buildIdea(user, "Idea2", "Desc2"));
+        likeRepository.save(buildLike(user, idea1));
+        likeRepository.save(buildLike(other, idea2));
+
+        List<Like> likes = likeRepository.findByUserIdAndIdeaIdIn(
+            user.getId(),
+            List.of(idea1.getId(), idea2.getId())
+        );
+
+        assertEquals(1, likes.size());
+        assertTrue(likes.stream().allMatch(like -> like.getUser().getId().equals(user.getId())));
+        assertTrue(likes.stream().allMatch(like -> like.getIdea().getId().equals(idea1.getId())));
+    }
+
+    @Test
+    void findByUserIdAndIdeaIdInIgnoresMissingIdeas() {
+        User user = userRepository.save(buildUser("batch4", "batch4@example.com"));
+        Idea idea = ideaRepository.save(buildIdea(user, "Idea3", "Desc3"));
+        likeRepository.save(buildLike(user, idea));
+
+        List<Like> likes = likeRepository.findByUserIdAndIdeaIdIn(
+            user.getId(),
+            List.of(idea.getId(), 999L)
+        );
+
+        assertEquals(1, likes.size());
+        assertTrue(likes.stream().anyMatch(like -> like.getIdea().getId().equals(idea.getId())));
+    }
+
+    @Test
+    void findByUserIdAndIdeaIdInReturnsEmptyWhenNoMatches() {
+        User user = userRepository.save(buildUser("batch5", "batch5@example.com"));
+        List<Like> likes = likeRepository.findByUserIdAndIdeaIdIn(user.getId(), List.of(999L, 1000L));
+        assertTrue(likes.isEmpty());
     }
 
     private User buildUser(String username, String email) {
