@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 @Slf4j
@@ -64,6 +65,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(401).body(
             ErrorResponse.builder().code(401).message("Authentication failed").build()
         );
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.badRequest()
+            .body(ApiResponse.error(400, "File size exceeds maximum limit of 5MB"));
     }
 
     @ExceptionHandler(Exception.class)
