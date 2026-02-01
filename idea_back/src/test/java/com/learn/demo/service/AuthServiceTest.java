@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,7 +25,6 @@ import java.util.Date;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -33,6 +33,7 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import java.util.concurrent.atomic.AtomicReference;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -70,8 +71,10 @@ class AuthServiceTest {
         RegisterRequest request = new RegisterRequest("alice", "pass123", "a@example.com");
         when(userRepository.existsByUsername("alice")).thenReturn(false);
         when(passwordEncoder.encode("pass123")).thenReturn("encoded");
+        AtomicReference<User> savedRef = new AtomicReference<>();
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User saved = invocation.getArgument(0);
+            savedRef.set(saved);
             saved.setId(1L);
             return saved;
         });
@@ -79,9 +82,8 @@ class AuthServiceTest {
         User result = authService.register(request);
 
         assertEquals(1L, result.getId());
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
-        User saved = captor.getValue();
+        verify(userRepository).save(any(User.class));
+        User saved = savedRef.get();
         assertEquals("alice", saved.getUsername());
         assertEquals("encoded", saved.getPassword());
         assertEquals("a@example.com", saved.getEmail());
@@ -150,11 +152,16 @@ class AuthServiceTest {
         Instant expiresAt = Instant.now().plusSeconds(60);
         when(jwtTokenProvider.getExpirationDateFromToken("token")).thenReturn(Date.from(expiresAt));
 
+        AtomicReference<Instant> instantRef = new AtomicReference<>();
+        doAnswer(invocation -> {
+            Instant captured = invocation.getArgument(1);
+            instantRef.set(captured);
+            return null;
+        }).when(tokenBlacklistService).addToBlacklist(any(String.class), any(Instant.class));
+
         authService.logout("token");
 
-        ArgumentCaptor<Instant> instantCaptor = ArgumentCaptor.forClass(Instant.class);
-        verify(tokenBlacklistService).addToBlacklist(any(String.class), instantCaptor.capture());
         // Date.from loses nanosecond precision, so compare at millisecond level
-        assertEquals(expiresAt.toEpochMilli(), instantCaptor.getValue().toEpochMilli());
+        assertEquals(expiresAt.toEpochMilli(), instantRef.get().toEpochMilli());
     }
 }

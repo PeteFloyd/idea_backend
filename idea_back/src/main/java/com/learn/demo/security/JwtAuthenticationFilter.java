@@ -6,6 +6,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -35,15 +39,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtTokenProvider.validateToken(token)) {
             String username = jwtTokenProvider.getUsernameFromToken(token);
             UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userDetails,
-                null,
-                userDetails.getAuthorities()
-            );
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (isTokenValidForUser(token, userDetails)) {
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.getAuthorities()
+                );
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isTokenValidForUser(String token, UserDetails userDetails) {
+        if (userDetails instanceof UserPrincipal principal) {
+            LocalDateTime passwordChangedAt = principal.getPasswordChangedAt();
+            if (passwordChangedAt != null) {
+                Date issuedAt = jwtTokenProvider.getIssuedAtFromToken(token);
+                if (issuedAt == null) {
+                    return false;
+                }
+                Instant issuedAtInstant = issuedAt.toInstant();
+                Instant passwordChangedInstant = passwordChangedAt.atZone(ZoneId.systemDefault()).toInstant();
+                return !issuedAtInstant.isBefore(passwordChangedInstant);
+            }
+        }
+        return true;
     }
 }

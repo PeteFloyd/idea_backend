@@ -74,6 +74,10 @@ public class JwtTokenProvider {
         return parseClaims(token).getExpiration();
     }
 
+    public Date getIssuedAtFromToken(String token) {
+        return parseClaims(token).getIssuedAt();
+    }
+
     private Claims parseClaims(String token) {
         return Jwts.parser()
             .verifyWith(secretKey)

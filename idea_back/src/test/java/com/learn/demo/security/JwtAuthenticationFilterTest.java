@@ -8,9 +8,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.learn.demo.entity.User;
+import com.learn.demo.enums.UserRole;
+import com.learn.demo.enums.UserStatus;
 import com.learn.demo.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
-import java.util.List;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,9 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,7 +57,7 @@ class JwtAuthenticationFilterTest {
         request.addHeader("Authorization", "Bearer valid-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
-        UserDetails userDetails = new User("alice", "secret", List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        UserDetails userDetails = new UserPrincipal(buildUser("alice", null));
 
         when(jwtTokenProvider.validateToken("valid-token")).thenReturn(true);
         when(jwtTokenProvider.getUsernameFromToken("valid-token")).thenReturn("alice");
@@ -111,5 +115,37 @@ class JwtAuthenticationFilterTest {
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(chain).doFilter(request, response);
         verifyNoInteractions(customUserDetailsService);
+    }
+
+    @Test
+    void doFilterInternalSkipsAuthenticationWhenPasswordChangedAfterTokenIssued() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer stale-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+        Instant issuedAt = Instant.parse("2024-01-01T00:00:00Z");
+        LocalDateTime passwordChangedAt = LocalDateTime.ofInstant(issuedAt.plusSeconds(60), ZoneId.systemDefault());
+        UserDetails userDetails = new UserPrincipal(buildUser("alice", passwordChangedAt));
+
+        when(jwtTokenProvider.validateToken("stale-token")).thenReturn(true);
+        when(jwtTokenProvider.getUsernameFromToken("stale-token")).thenReturn("alice");
+        when(customUserDetailsService.loadUserByUsername("alice")).thenReturn(userDetails);
+        when(jwtTokenProvider.getIssuedAtFromToken("stale-token")).thenReturn(Date.from(issuedAt));
+
+        filter.doFilterInternal(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(chain).doFilter(request, response);
+    }
+
+    private User buildUser(String username, LocalDateTime passwordChangedAt) {
+        User user = new User();
+        user.setId(1L);
+        user.setUsername(username);
+        user.setPassword("secret");
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setPasswordChangedAt(passwordChangedAt);
+        return user;
     }
 }
